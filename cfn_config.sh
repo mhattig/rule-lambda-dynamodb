@@ -1,0 +1,6 @@
+WPE_RULE=wpe_rule
+WPE_LAMBDA_ROLE=lambda_role
+WPE_LAMBDA=wpe_lambda
+S3_BUCKET=wpe-1209234
+WPE_LAMBDA_ZIP=wpe_lambda.zip
+WPE_DYNAMODB=wpe_dynamodb

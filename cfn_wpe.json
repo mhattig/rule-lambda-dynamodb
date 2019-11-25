@@ -1,0 +1,172 @@
+{
+    "AWSTemplateFormatVersion": "2010-09-09",
+    "Description": "Wirepas Position Engine CloudFormation Template",
+    "Parameters": {
+        "WpeRuleName": {
+            "Description": "WPE Rule name",
+            "Type": "String"
+        },
+        "WpeLambdaRoleName": {
+            "Description": "Role name for the lambda",
+            "Type": "String"
+        },
+        "WpeLambdaName": {
+            "Description": "WPE Lambda name",
+            "Type": "String"
+        },
+        "S3BucketName": {
+            "Description": "S3 Bucket for zip files",
+            "Type": "String"
+        },
+        "WpeLambdaZipName": {
+            "Description": "Zip file name with lambda",
+            "Type": "String"
+        },
+        "WpeDynamoDbName": {
+            "Description": "DynamoDB table name",
+            "Type": "String"
+        }
+    },
+    "Resources": {
+        "WpeRule": {
+            "Type": "AWS::IoT::TopicRule",
+            "Properties": {
+                "RuleName": {
+                    "Ref": "WpeRuleName"
+                },
+                "TopicRulePayload": {
+
+                    "Sql": "SELECT * as data, topic() as topic FROM 'ruuvi_tag/#'",
+                    "AwsIotSqlVersion": "2016-03-23",
+                    "RuleDisabled": false,
+                    "Actions": [
+                        {
+                            "Lambda": {
+                                "FunctionArn": {
+                                    "Fn::Sub": "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${WpeLambdaName}"
+                                }
+                            }
+                        }
+                    ]
+                }
+            },
+            "DependsOn": [
+                "WpeLambda"
+            ]
+        },
+        "WpeLambda": {
+            "Type": "AWS::Lambda::Function",
+            "Properties": {
+                "Code": {
+                    "S3Bucket": {
+                        "Fn::Sub": "${S3BucketName}"
+                    },
+                    "S3Key": {
+                        "Fn::Sub": "${WpeLambdaZipName}"
+                    }
+                },
+                "FunctionName": {
+                    "Ref": "WpeLambdaName"
+                },
+                "MemorySize": 128,
+                "Handler": {
+                    "Fn::Sub": "${WpeLambdaName}.wpe_lambda"
+                },
+                "Role": {
+                    "Fn::Sub": "arn:aws:iam::${AWS::AccountId}:role/${WpeLambdaRole}"
+                },
+                "Timeout": 5,
+                "Runtime": "python3.7",
+                "Description": "Wirepas Position Engine"
+            },
+        },
+        "WpePermission": {
+            "Type": "AWS::Lambda::Permission", "Properties": {
+                "FunctionName": {
+                    "Fn::GetAtt": [
+                        "WpeLambda",
+                        "Arn"
+                    ]
+                },
+                "Action": "lambda:InvokeFunction",
+                "Principal": "iot.amazonaws.com",
+                "SourceAccount": {
+                    "Ref": "AWS::AccountId"
+                },
+                "SourceArn": {
+                    "Fn::GetAtt": [
+                        "WpeRule",
+                        "Arn"
+                    ]
+                }
+            },
+        },
+        "WpeLambdaRole": {
+            "Type": "AWS::IAM::Role",
+            "Properties": {
+                "RoleName": {
+                    "Ref": "WpeLambdaRoleName"
+                },
+                "AssumeRolePolicyDocument": {
+                    "Version": "2012-10-17",
+                    "Statement": [
+                        {
+                            "Effect": "Allow",
+                            "Principal": {
+                                "Service": "lambda.amazonaws.com"
+                            },
+                            "Action": "sts:AssumeRole"
+                        }
+                    ]
+                },
+                "Path": "/",
+                "Policies": [
+                    {
+                        "PolicyName": "WpeLambdaPolicy",
+                        "PolicyDocument": {
+                            "Version": "2012-10-17",
+                            "Statement": [
+                                {
+                                    "Effect": "Allow",
+                                    "Action": [
+                                        "iot:AttachPolicy",
+                                        "lambda:InvokeFunction",
+                                        "logs:CreateLogGroup",
+                                        "logs:PutLogEvents",
+                                        "logs:CreateLogStream",
+                                        "dynamodb:*"
+                                    ],
+                                    "Resource": "*"
+                                }
+                            ]
+                        }
+                    }
+                ]
+            },
+        },
+        "WpeDynamoDBTable": {
+            "Type" : "AWS::DynamoDB::Table",
+            "Properties" : {
+                "TableName": {
+                    "Ref": "WpeDynamoDbName"
+                },
+                "AttributeDefinitions" : [ 
+                    {
+                        "AttributeName": "timedate",
+                        "AttributeType": "S"
+                    }
+                ],
+                "KeySchema" : [ 
+                    {
+                        "AttributeName": "timedate",
+                        "KeyType": "HASH"
+                    }
+                ],
+                "ProvisionedThroughput": {
+                    "ReadCapacityUnits": 5,
+                    "WriteCapacityUnits": 5
+                }
+            }
+        }
+    }
+}
