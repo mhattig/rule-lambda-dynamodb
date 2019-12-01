@@ -1,9 +1,9 @@
 {
     "AWSTemplateFormatVersion": "2010-09-09",
-    "Description": "Wirepas Position Engine CloudFormation Template",
+    "Description": "Rule, Lambda, DynamoDB CloudFormation Template",
     "Parameters": {
         "WpeRuleName": {
-            "Description": "WPE Rule name",
+            "Description": "Rule name",
             "Type": "String"
         },
         "WpeLambdaRoleName": {
@@ -11,7 +11,7 @@
             "Type": "String"
         },
         "WpeLambdaName": {
-            "Description": "WPE Lambda name",
+            "Description": "Lambda name",
             "Type": "String"
         },
         "S3BucketName": {
